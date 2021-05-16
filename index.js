@@ -3,6 +3,15 @@ const path = require('path')
 const app = express();
 const { v4: uuid } = require('uuid');
 const methodOverride = require('method-override');
+const mongoose = require('mongoose');
+
+mongoose.connect('mongodb://localhost:27017/comments', {useNewUrlParser: true, useUnifiedTopology: true})
+    .then(res => {
+        console.log("Connection Successful!");
+    })
+    .catch(err => {
+        console.log("Connection Failed!");
+    })
 
 app.use(express.urlencoded({extended: true}));
 app.use(express.json());
@@ -10,62 +19,86 @@ app.use(methodOverride('_method'));
 app.set('views', path.join(__dirname,'views'));
 app.set('view engine', 'ejs');
 
-let comments = [
-    {
-        id: uuid(),
-        username: 'Todd',
-        comment: 'lol that is so funny!'
-    },
-    {
-        id: uuid(),
-        username: 'Skyler',
-        comment: 'I like to go birdwatching with my dog'
-    },
-    {
-        id: uuid(),
-        username: 'Sk8erBoi',
-        comment: 'Plz delete your account, Todd'
-    },
-    {
-        id: uuid(),
-        username: 'onlysayswoof',
-        comment: 'woof woof woof'
-    },
-];
 
-app.get('/comments', (req,res) => {
-    res.render('comments/index', {comments});
+const commentSchema = new mongoose.Schema({
+    username: {
+        type: String,
+        required: true,
+    },
+    comment: {
+        type: String,
+        required: true,
+    },
 });
 
-app.post('/comments', (req,res) => {
-    const newComment = req.body;
-    comments.push({
-        id: uuid(),
-        username: newComment.username,
-        comment: newComment.cmt,
+const Comment = mongoose.model('Comment', commentSchema);
+
+
+app.get('/comments', async (req,res) => {
+        try {
+            let comments = await Comment.find({}).exec();
+            console.log("Data retreived succesfully!");
+            res.render('comments/index', {comments});
+        } catch (err) {
+            console.log("Data retreival failed!");
+            res.send("Data could not be retreived");
+        }
+});
+
+app.post('/comments', async (req,res) => {
+    const newComment = new Comment({
+        username: req.body.username,
+        comment: req.body.comment,
     });
+    
+    try {
+        let val = await newComment.save();
+        console.log("Added succesfully!");
+        console.log(val);
+    } catch (err) {
+        console.log("Failed to add!");
+    }
+    
     res.redirect('/comments');
 });
 
-app.get('/comments/:id', (req,res) => {
+app.get('/comments/:id', async (req,res) => {
     const {id} = req.params;
-    const cmt = comments.find(c => c.id===id);
-    res.render('comments/show', {cmt});
+
+    try {
+        const cmt = await Comment.findById(id).exec();
+        console.log("Comment found successfully!");
+        res.render('comments/show', {cmt});
+    } catch (err) {
+        console.log("Error in finding comment!");
+    }
 });
 
-app.delete('/comments/:id', (req,res) => {
+app.delete('/comments/:id', async (req,res) => {
     const {id} = req.params;
-    comments = comments.filter(c => c.id!==id);
-    res.redirect('/comments');
+
+    try {
+        let data = await Comment.deleteOne({_id: id}).exec();
+        console.log("Deletion successful!");
+        res.redirect('/comments');
+    } catch (err) {
+        console.log("Deletion failed!");
+    }
 });
 
-app.patch('/comments/:id', (req,res) => {
+app.patch('/comments/:id', async (req,res) => {
     const {newComment} = req.body;
-    console.log(newComment);
     const {id} = req.params;
-    let foundComment = comments.find(c => c.id===id);
-    foundComment.comment = newComment;
-    res.redirect('/comments');
+    
+    try {
+        let data = await Comment.findById(id).exec();
+        data.comment = newComment;
+        await data.save();
+        console.log("Comment updation successful!");
+        res.redirect('/comments');
+    } catch (err) {
+        console.log("Comment updation failed!");
+    }
 });
 
 app.listen(8888, () => {
