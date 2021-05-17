@@ -5,7 +5,7 @@ const { v4: uuid } = require('uuid');
 const methodOverride = require('method-override');
 const mongoose = require('mongoose');
 
-// Connects with the database
+
 mongoose.connect('mongodb://localhost:27017/comments', {useNewUrlParser: true, useUnifiedTopology: true})
     .then(res => {
         console.log("Connection Successful!");
